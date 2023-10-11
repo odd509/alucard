@@ -9,7 +9,7 @@ from transaction import Transaction
 
 class Blockchain:
     MAX_BLOCK_SIZE = 1000000    # 1 MB
-
+    MAX_TRANSACTIONS_PER_BLOCK = 2
     def __init__(self):
         self.chain = []
         self.current_transactions = []
@@ -75,7 +75,9 @@ class Blockchain:
         """
         transaction = Transaction(transaction_type, sender, recipient, password_info)
         self.current_transactions.append(transaction.to_dict())
+        self.last_block.transactions = self.current_transactions
 
+        print(len(self.current_transactions))
         # If the current transactions exceed the maximum per block, mine a new block
         if len(self.current_transactions) >= Blockchain.MAX_TRANSACTIONS_PER_BLOCK:
             return self.mine_block()
