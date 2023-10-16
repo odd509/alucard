@@ -3,7 +3,7 @@ import hashlib
 
 class Miner:
     @staticmethod
-    def mine(blockchain, difficulty=4):
+    def mine(blockchain, difficulty=2):
         """
         Mine a new block for the blockchain using proof of work
 

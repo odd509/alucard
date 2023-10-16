@@ -5,20 +5,20 @@ import sys
 from time import time
 from block import Block
 from miner import Miner
-from transaction import Transaction
+from transaction import Transaction, TransactionPool
 
 class Blockchain:
     MAX_BLOCK_SIZE = 1000000    # 1 MB
-    MAX_TRANSACTIONS_PER_BLOCK = 2
+    MAX_TRANSACTIONS_PER_BLOCK = 1
     def __init__(self):
         self.chain = []
-        self.current_transactions = []
+        self.transaction_pool = TransactionPool()
 
         # Create the genesis block
         self.new_block(previous_hash="1", proof=100)
 
 
-    def new_block(self, proof, previous_hash=None):
+    def new_block(self, proof, previous_hash=None, transactions=[]):
         """
         Create a new block in the blockchain.
 
@@ -29,12 +29,12 @@ class Blockchain:
         block = Block(
             index=len(self.chain) + 1,
             timestamp=time(),
-            transactions=self.current_transactions,
+            transactions=[tx.to_dict() for tx in transactions] if transactions else [],
             proof=proof,
             previous_hash=previous_hash or self.hash(self.chain[-1]) if self.chain else None
         )
 
-        self.current_transactions = []
+        print(block.to_dict())
         self.chain.append(block)
         return block
     
@@ -60,6 +60,10 @@ class Blockchain:
         """
         # Mine a new block using proof of work
         proof, new_block = Miner.mine(self)
+
+        # Remove the transactions from the transaction pool
+        transactions = self.transaction_pool.fetch_transactions(Blockchain.MAX_TRANSACTIONS_PER_BLOCK)
+        self.new_block(proof, transactions=transactions)
         return new_block
     
 
@@ -73,17 +77,13 @@ class Blockchain:
         :param password_info: Information related to the password
         :return: The index of the block that will hold this transaction
         """
-        transaction = Transaction(transaction_type, sender, recipient, password_info)
-        self.current_transactions.append(transaction.to_dict())
-        self.last_block.transactions = self.current_transactions
+        self.transaction_pool.add_transaction(sender, recipient, transaction_type, password_info)
 
-        print(len(self.current_transactions))
-        # If the current transactions exceed the maximum per block, mine a new block
-        if len(self.current_transactions) >= Blockchain.MAX_TRANSACTIONS_PER_BLOCK:
-            return self.mine_block()
-
-        return self.last_block.index + 1
-    
+        # If the transaction pool exceeds the maximum transactions per block, mine a new block
+        if len(self.last_block.transactions) >= Blockchain.MAX_TRANSACTIONS_PER_BLOCK:
+            print(transaction_type)
+            return self.mine_block().index
+            
     
     def retrieve_user_data(self, user_id, website):
         """
@@ -111,17 +111,17 @@ class Blockchain:
     @property
     def last_block(self):
         return self.chain[-1]
+    
+    def to_dict(self):
+        """
+        Convert the blockchain and related data to a dictionary.
 
-# Example usage
-if __name__ == "__main__":
-    blockchain = Blockchain()
-    blockchain.new_transaction("create", "user123", "password_manager", {"website": "example.com", "password": "password123"})
-    blockchain.new_transaction("update", "user123", "password_manager", {"password_id": "12345", "updated_password": "newpassword123"})
-    blockchain.new_block(proof=12345)
-
-    for block in blockchain.chain:
-        print("Block Index:", block.index)
-        print("Block Hash:", block.hash())
-        print("Transactions:", block.transactions)
-        print("Previous Hash:", block.previous_hash)
-        print("\n")
+        :return: Dictionary representation of the blockchain
+        """
+        blocks = [block.to_dict() for block in self.chain]
+        return {
+            'chain': blocks,
+            'transaction_pool': self.transaction_pool.to_dict(),
+            'max_block_size': self.MAX_BLOCK_SIZE,
+            'max_transactions_per_block': self.MAX_TRANSACTIONS_PER_BLOCK
+        }
